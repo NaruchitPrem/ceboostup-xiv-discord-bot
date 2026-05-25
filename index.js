@@ -45,7 +45,7 @@ const serviceAccountAuth = new JWT({
 });
 
 const doc = new GoogleSpreadsheet(process.env.SHEET_ID, serviceAccountAuth);
-const staffDoc = new GoogleSpreadsheet(process.env.STAFF_SHEET_ID, auth);
+const staffDoc = new GoogleSpreadsheet(process.env.STAFF_SHEET_ID, serviceAccountAuth);
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ ล็อกอินสำเร็จ! บอทพร้อมทำงานในชื่อ ${client.user.tag}`);
