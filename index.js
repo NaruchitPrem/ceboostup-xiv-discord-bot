@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
 
@@ -45,6 +45,7 @@ const serviceAccountAuth = new JWT({
 });
 
 const doc = new GoogleSpreadsheet(process.env.SHEET_ID, serviceAccountAuth);
+const staffDoc = new GoogleSpreadsheet(process.env.STAFF_SHEET_ID, auth);
 
 client.once(Events.ClientReady, () => {
     console.log(`✅ ล็อกอินสำเร็จ! บอทพร้อมทำงานในชื่อ ${client.user.tag}`);
@@ -88,79 +89,152 @@ client.on(Events.MessageCreate, async message => {
     }
 });
 
-// ---------------------------------------------------------
-// ระบบเมื่อคนกดปุ่ม (ทั้งผู้เข้าร่วมปกติ และ Staff)
-// ---------------------------------------------------------
+// =================================================================
+// 🎮 ระบบเมื่อคนกดปุ่ม หรือส่งฟอร์ม (รวมของน้อง และ Staff)
+// =================================================================
 client.on(Events.InteractionCreate, async interaction => {
-    // เช็คแค่ว่าเป็นการกดปุ่มหรือไม่ (เอาการบล็อกชื่อปุ่มออกแล้ว)
-    if (!interaction.isButton()) return;
 
-    // ------------------------------------------------
-    // 1. ระบบของปุ่ม Verify ผู้เข้าร่วมปกติ
-    // ------------------------------------------------
-    if (interaction.customId === 'verify_button') {
-        await interaction.deferReply({ ephemeral: true });
+    // 🔘 [ส่วนที่ 1] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดปุ่ม"
+    if (interaction.isButton()) {
+        
+        // 👶 บล็อกของ "verify น้อง" (ยกมาจากของเดิมของคุณเป๊ะๆ)
+        if (interaction.customId === 'verify_button') {
+            await interaction.deferReply({ ephemeral: true });
+            try {
+                await doc.loadInfo();
+                const sheet = doc.sheetsByIndex[0];
+                const rows = await sheet.getRows();
+                const reportChannelId = process.env.REPORT_CHANNEL_ID;
 
-        try {
-            await doc.loadInfo();
-            const sheet = doc.sheetsByIndex[0];
-            const rows = await sheet.getRows();
-            const reportChannelId = process.env.REPORT_CHANNEL_ID;
+                const userData = rows.find(row => row.get('Discord ID') === interaction.user.id);
 
-            const userData = rows.find(row => row.get('Discord ID') === interaction.user.id);
+                if (userData) {
+                    const houseName = userData.get('House');
+                    const majorName = userData.get('Major');
 
-            if (userData) {
-                const houseName = userData.get('House');
-                const majorName = userData.get('Major');
+                    const houseRoleId = houseRoles[houseName];
+                    const majorRoleId = majorRoles[majorName];
 
-                const houseRoleId = houseRoles[houseName];
-                const majorRoleId = majorRoles[majorName];
+                    const rolesToAdd = [];
+                    if (houseRoleId) rolesToAdd.push(houseRoleId);
+                    if (majorRoleId) rolesToAdd.push(majorRoleId);
 
-                const rolesToAdd = [];
-                if (houseRoleId) rolesToAdd.push(houseRoleId);
-                if (majorRoleId) rolesToAdd.push(majorRoleId);
-
-                if (rolesToAdd.length > 0) {
-                    await interaction.member.roles.add(rolesToAdd);
-                    await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **${houseName}** (${majorName}) ครับ!`);
+                    if (rolesToAdd.length > 0) {
+                        await interaction.member.roles.add(rolesToAdd);
+                        await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับสู่ **${houseName}** (${majorName}) ครับ!`);
+                    } else {
+                        await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหายศในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                    }
                 } else {
-                    await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหายศในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                    await interaction.editReply(`❌ ไม่พบข้อมูล Discord ID ของคุณในระบบ! กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
                 }
-            } else {
-                await interaction.editReply(`❌ ไม่พบข้อมูล Discord ID ของคุณในระบบ! กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+            } catch (error) {
+                console.error(error);
+                const reportChannelId = process.env.REPORT_CHANNEL_ID;
+                await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลครับ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
             }
-        } catch (error) {
-            console.error(error);
-            const reportChannelId = process.env.REPORT_CHANNEL_ID;
-            await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลครับ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+        }
+        
+        // 🛠️ บล็อกของ "verify Staff" (เปลี่ยนเป็นเด้งหน้าต่างกรอกรหัส)
+        else if (interaction.customId === 'verify_staff_button') {
+            const modal = new ModalBuilder()
+                .setCustomId('staff_verify_modal')
+                .setTitle('ยืนยันตัวตน Staff');
+
+            const studentIdInput = new TextInputBuilder()
+                .setCustomId('student_id_input')
+                .setLabel('กรอกรหัสนักศึกษาของคุณ')
+                .setPlaceholder('เช่น 68010578')
+                .setStyle(TextInputStyle.Short)
+                .setMaxLength(8)
+                .setRequired(true);
+
+            const firstActionRow = new ActionRowBuilder().addComponents(studentIdInput);
+            modal.addComponents(firstActionRow);
+            
+            // สั่งให้บอทแสดงหน้าต่าง Pop-up เด้งขึ้นมา
+            await interaction.showModal(modal);
         }
     }
 
-    // ------------------------------------------------
-    // 2. ระบบของปุ่ม Staff (แจกยศ Staff ทันที)
-    // ------------------------------------------------
-    else if (interaction.customId === 'verify_staff_button') {
-        await interaction.deferReply({ ephemeral: true });
+// 📝 [ส่วนที่ 2] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดยืนยันส่งฟอร์ม Pop-up" (Modal)
+    else if (interaction.isModalSubmit()) {
+        
+        if (interaction.customId === 'staff_verify_modal') {
+            await interaction.deferReply({ ephemeral: true });
+            const studentId = interaction.fields.getTextInputValue('student_id_input').trim();
 
-        try {
-            const staffRoleId = process.env.STAFF_ROLE_ID;
+            try {
+                // โหลดข้อมูลจาก Google Sheet ของสตาฟ
+                await staffDoc.loadInfo();
+                const sheet = staffDoc.sheetsByIndex[0];
+                const rows = await sheet.getRows();
 
-            if (!staffRoleId) {
-                return await interaction.editReply(`⚠️ ไม่พบการตั้งค่า STAFF_ROLE_ID ในไฟล์ .env ครับ`);
+                // ค้นหาแถวที่ "รหัสนศ." ตรงกับที่กรอกมา
+                const userData = rows.find(row => row.get('รหัสนศ.') === studentId);
+
+                if (userData) {
+                    const staffRoleId = process.env.STAFF_ROLE_ID;
+                    const nickname = userData.get('ชื่อเล่น');
+                    const position = userData.get('ตำแหน่ง');
+                    
+                    // 1. ดึงข้อความดิบมาจากชีท เช่น "The World (หัวหน้า)"
+                    const rawHouseName = userData.get('บ้าน'); 
+                    
+                    // 📌 2. [แก้ไขตรงนี้] ค้นหาคีย์ใน houseRoles ว่ามีคำไหน "ซ่อนอยู่ในข้อความดิบ" ไหม
+                    // เช่น ถ้า rawHouseName มีคำว่า "The World" มันจะเลือกคีย์ "The World" ให้ทันทีครับ
+                    const houseName = Object.keys(houseRoles).find(key => 
+                            rawHouseName && rawHouseName.toLowerCase().includes(key.toLowerCase()));                    
+                    // 3. เอาชื่อบ้านที่ถอดวงเล็บออกแล้ว ไปดึงไอดีของยศมาใช้งาน
+                    const houseRoleId = houseName ? houseRoles[houseName] : undefined; 
+
+                    if (!staffRoleId) {
+                        return await interaction.editReply(`⚠️ บอทยังไม่ได้ตั้งค่ายศ Staff ในระบบครับ`);
+                    }
+
+                    // ------------------------------------------------
+                    // ระบบเปลี่ยนชื่อเล่นเป็น P'ชื่อเล่น
+                    // ------------------------------------------------
+                    let nicknameChanged = true;
+                    try {
+                        await interaction.member.setNickname(`P'${nickname}`);
+                    } catch (nickError) {
+                        console.error('⚠️ เปลี่ยนชื่อเล่นไม่ได้:', nickError);
+                        nicknameChanged = false; 
+                    }
+
+                    // เตรียมรายการยศที่จะแจก
+                    const rolesToAdd = [];
+                    if (!interaction.member.roles.cache.has(staffRoleId)) {
+                        rolesToAdd.push(staffRoleId);
+                    }
+                    if (houseRoleId && !interaction.member.roles.cache.has(houseRoleId)) {
+                        rolesToAdd.push(houseRoleId);
+                    }
+
+                    // สั่งยัดยศทั้งหมดที่มีในรายการพร้อมกัน
+                    if (rolesToAdd.length > 0) {
+                        await interaction.member.roles.add(rolesToAdd);
+                    }
+
+                    // สร้างข้อความตอบกลับ
+                    let msg = `✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **พี่ ${nickname}** `;
+                    if (houseRoleId) msg += ` บ้าน **${houseName}**`; // จะแสดงชื่อบ้านสวยๆ เช่น "The World"
+                    
+                    if (nicknameChanged) {
+                        msg += ` บอทได้เปลี่ยนชื่อเล่นในเซิร์ฟให้เป็น **P'${nickname}** เรียบร้อยครับ 🛠️🏠`;
+                    } else {
+                        msg += ` ได้รับยศเรียบร้อยครับ 🛠️🏠`;
+                    }
+                    
+                    await interaction.editReply(msg);
+                } else {
+                    await interaction.editReply(`❌ ไม่พบรหัสนักศึกษา **${studentId}** ในฐานข้อมูล Staff ครับ`);
+                }
+            } catch (error) {
+                console.error('Staff Verify Error:', error);
+                await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheet ครับ`);
             }
-
-            if (interaction.member.roles.cache.has(staffRoleId)) {
-                return await interaction.editReply(`ℹ️ คุณมียศ Staff เรียบร้อยแล้วครับ ไม่ต้องกดซ้ำนะ!`);
-            }
-
-            // แอดมินแจกยศ Staff ให้ทันที
-            await interaction.member.roles.add(staffRoleId);
-            
-            await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! คุณได้รับยศ **Staff** เรียบร้อยแล้วครับ🛠️`);
-
-        } catch (error) {
-            console.error('Staff Verify Error:', error);
-            await interaction.editReply(`🚨 เกิดข้อผิดพลาด! กรุณาเช็คว่ายศของบอทอยู่สูงกว่ายศ Staff หรือยังครับ`);
         }
     }
 });
