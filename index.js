@@ -16,12 +16,23 @@ const client = new Client({
 // ตั้งค่า ID ยศ (Role IDs) ให้ตรงกับชื่อใน Google Sheet
 // ---------------------------------------------------------
 const houseRoles = {
-    "The Magician": "1498983057817079950", // เปลี่ยนเป็น ID ยศจริงที่ใช้เทส
-    // ไว้ค่อยมาเพิ่มบ้าน 2-12 ทีหลังได้ครับ
+    "The Magician": "1498983057817079950",
+    "Justice": "1508333585483174019",
+    "Strength": "1504816949824196629",
+    "Temperance": "1501165605422633040",
+    "The Chariot": "1508334036580306954",
+    "The Emperor": "1508339327812243558",
+    "The Empress": "1508339493940232212",
+    "The Hierophant": "1508339889857499167",
+    "The High Priestess": "1508340109676642338",
+    "The Lovers": "1508340242732810391",
+    "The Star": "1508340513709756416",
+    "The World": "1508340681587032225",
 };
 
 const majorRoles = {
-    "Cyber": "1501150391205757051", // เปลี่ยนเป็น ID ยศจริงที่ใช้เทส
+    "Cyber": "1501150391205757051",
+    "CE65": "1501150271861035109"
 };
 
 // ---------------------------------------------------------
@@ -59,54 +70,102 @@ client.on(Events.MessageCreate, async message => {
         });
         await message.delete();
     }
-});
+    if (message.content === '!setup-staff') {
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('verify_staff_button')
+                    .setLabel('🛠️ ยืนยันตัวตน (Staff)')
+                    .setStyle(ButtonStyle.Primary),
+            );
 
-// ---------------------------------------------------------
-// ระบบเมื่อคนกดปุ่ม (เช็ค Sheet + ให้ยศแบบแจ้งเตือนในช่อง)
-// ---------------------------------------------------------
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isButton() || interaction.customId !== 'verify_button') return;
-
-    // บอก Discord ว่ากำลังประมวลผล (ข้อความจะเห็นแค่คนกด)
-    await interaction.deferReply({ ephemeral: true });
-
-    try {
-        await doc.loadInfo(); 
-        const sheet = doc.sheetsByIndex[0]; 
-        const rows = await sheet.getRows(); 
-
-        // ค้นหาแถวที่ Discord ID ตรงกับคนที่กดปุ่ม
-        const userData = rows.find(row => row.get('Discord ID') === interaction.user.id);
-
-        if (userData) {
-            const houseName = userData.get('House');
-            const majorName = userData.get('Major');
-
-            const houseRoleId = houseRoles[houseName];
-            const majorRoleId = majorRoles[majorName];
-
-            const rolesToAdd = [];
-            if (houseRoleId) rolesToAdd.push(houseRoleId);
-            if (majorRoleId) rolesToAdd.push(majorRoleId);
-
-            // ถ้าระบบเจอยศที่จะต้องให้
-            if (rolesToAdd.length > 0) {
-                await interaction.member.roles.add(rolesToAdd);
-                await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับสู่ **${houseName}** (${majorName}) ครับ!`);
-            } else {
-                await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหายศในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อ Staff ครับ`);
-            }
-        } else {
-            // ถ้าไม่เจอ ID ในชีท
-            await interaction.editReply(`❌ ไม่พบข้อมูล Discord ID ของคุณในระบบ! กรุณาติดต่อฝ่าย Data เพื่อลงทะเบียนครับ`);
-        }
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลครับ กรุณาแจ้ง Staff`);
+        await message.channel.send({ 
+            content: '📌 **สำหรับ Staff:** กดปุ่มด้านล่างเพื่อรับยศ Staff ครับ', 
+            components: [row] 
+        });
+        
+        await message.delete();
     }
 });
 
 // ---------------------------------------------------------
+// ระบบเมื่อคนกดปุ่ม (ทั้งผู้เข้าร่วมปกติ และ Staff)
+// ---------------------------------------------------------
+client.on(Events.InteractionCreate, async interaction => {
+    // เช็คแค่ว่าเป็นการกดปุ่มหรือไม่ (เอาการบล็อกชื่อปุ่มออกแล้ว)
+    if (!interaction.isButton()) return;
+
+    // ------------------------------------------------
+    // 1. ระบบของปุ่ม Verify ผู้เข้าร่วมปกติ
+    // ------------------------------------------------
+    if (interaction.customId === 'verify_button') {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            await doc.loadInfo();
+            const sheet = doc.sheetsByIndex[0];
+            const rows = await sheet.getRows();
+            const reportChannelId = process.env.REPORT_CHANNEL_ID;
+
+            const userData = rows.find(row => row.get('Discord ID') === interaction.user.id);
+
+            if (userData) {
+                const houseName = userData.get('House');
+                const majorName = userData.get('Major');
+
+                const houseRoleId = houseRoles[houseName];
+                const majorRoleId = majorRoles[majorName];
+
+                const rolesToAdd = [];
+                if (houseRoleId) rolesToAdd.push(houseRoleId);
+                if (majorRoleId) rolesToAdd.push(majorRoleId);
+
+                if (rolesToAdd.length > 0) {
+                    await interaction.member.roles.add(rolesToAdd);
+                    await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **${houseName}** (${majorName}) ครับ!`);
+                } else {
+                    await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหายศในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                }
+            } else {
+                await interaction.editReply(`❌ ไม่พบข้อมูล Discord ID ของคุณในระบบ! กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+            }
+        } catch (error) {
+            console.error(error);
+            const reportChannelId = process.env.REPORT_CHANNEL_ID;
+            await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลครับ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+        }
+    }
+
+    // ------------------------------------------------
+    // 2. ระบบของปุ่ม Staff (แจกยศ Staff ทันที)
+    // ------------------------------------------------
+    else if (interaction.customId === 'verify_staff_button') {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const staffRoleId = process.env.STAFF_ROLE_ID;
+
+            if (!staffRoleId) {
+                return await interaction.editReply(`⚠️ ไม่พบการตั้งค่า STAFF_ROLE_ID ในไฟล์ .env ครับ`);
+            }
+
+            if (interaction.member.roles.cache.has(staffRoleId)) {
+                return await interaction.editReply(`ℹ️ คุณมียศ Staff เรียบร้อยแล้วครับ ไม่ต้องกดซ้ำนะ!`);
+            }
+
+            // แอดมินแจกยศ Staff ให้ทันที
+            await interaction.member.roles.add(staffRoleId);
+            
+            await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! คุณได้รับยศ **Staff** เรียบร้อยแล้วครับ🛠️`);
+
+        } catch (error) {
+            console.error('Staff Verify Error:', error);
+            await interaction.editReply(`🚨 เกิดข้อผิดพลาด! กรุณาเช็คว่ายศของบอทอยู่สูงกว่ายศ Staff หรือยังครับ`);
+        }
+    }
+});
+
+// ----------------------------------------------------------
 // ระบบต้อนรับคนเข้าเซิร์ฟเวอร์ (Welcome Message)
 // ---------------------------------------------------------
 client.on(Events.GuildMemberAdd, async member => {
