@@ -187,4 +187,16 @@ client.on(Events.GuildMemberAdd, async member => {
     }
 });
 
+// ---------------------------------------------------------
+// 🌐 สร้าง Web Server จำลอง เพื่อให้ UptimeRobot คอยยิงมาปลุกบอท
+// ---------------------------------------------------------
+const http = require('http');
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot CE BOOSTUP XIV is running 24/7!');
+}).listen(process.env.PORT || 3000, () => {
+    console.log('🌐 Web Server สำหรับสแตนบายบน Render พร้อมทำงานแล้วครับ!');
+});
+
 client.login(process.env.DISCORD_TOKEN);
