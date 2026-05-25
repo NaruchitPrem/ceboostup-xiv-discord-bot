@@ -184,7 +184,8 @@ client.on(Events.InteractionCreate, async interaction => {
                     // 📌 2. [แก้ไขตรงนี้] ค้นหาคีย์ใน houseRoles ว่ามีคำไหน "ซ่อนอยู่ในข้อความดิบ" ไหม
                     // เช่น ถ้า rawHouseName มีคำว่า "The World" มันจะเลือกคีย์ "The World" ให้ทันทีครับ
                     const houseName = Object.keys(houseRoles).find(key => 
-                            rawHouseName && rawHouseName.toLowerCase().includes(key.toLowerCase()));                    
+                            rawHouseName && rawHouseName.toLowerCase().includes(key.toLowerCase()));
+                                 
                     // 3. เอาชื่อบ้านที่ถอดวงเล็บออกแล้ว ไปดึงไอดีของยศมาใช้งาน
                     const houseRoleId = houseName ? houseRoles[houseName] : undefined; 
 
@@ -197,7 +198,7 @@ client.on(Events.InteractionCreate, async interaction => {
                     // ------------------------------------------------
                     let nicknameChanged = true;
                     try {
-                        await interaction.member.setNickname(`P'${nickname}`);
+                        await interaction.member.setNickname(`P' ${nickname}`);
                     } catch (nickError) {
                         console.error('⚠️ เปลี่ยนชื่อเล่นไม่ได้:', nickError);
                         nicknameChanged = false; 
@@ -222,7 +223,7 @@ client.on(Events.InteractionCreate, async interaction => {
                     if (houseRoleId) msg += ` บ้าน **${houseName}**`; // จะแสดงชื่อบ้านสวยๆ เช่น "The World"
                     
                     if (nicknameChanged) {
-                        msg += ` บอทได้เปลี่ยนชื่อเล่นในเซิร์ฟให้เป็น **P'${nickname}** เรียบร้อยครับ 🛠️🏠`;
+                        msg += ` บอทได้เปลี่ยนชื่อเล่นในเซิร์ฟให้เป็น **P' ${nickname}** เรียบร้อยครับ 🛠️🏠`;
                     } else {
                         msg += ` ได้รับยศเรียบร้อยครับ 🛠️🏠`;
                     }
