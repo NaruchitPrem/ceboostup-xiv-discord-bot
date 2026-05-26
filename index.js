@@ -219,7 +219,7 @@ client.on(Events.InteractionCreate, async interaction => {
                     }
 
                     // สร้างข้อความตอบกลับ
-                    let msg = `✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **พี่ ${nickname}** `;
+                    let msg = `✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **P' ${nickname}** `;
                     if (houseRoleId) msg += ` บ้าน **${houseName}**`; // จะแสดงชื่อบ้านสวยๆ เช่น "The World"
                     
                     if (nicknameChanged) {
