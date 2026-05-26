@@ -144,7 +144,7 @@ client.on(Events.InteractionCreate, async interaction => {
             const studentIdInput = new TextInputBuilder()
                 .setCustomId('student_id_input')
                 .setLabel('กรอกรหัสนักศึกษาของคุณ')
-                .setPlaceholder('เช่น 68010578')
+                .setPlaceholder('เช่น 68123456')
                 .setStyle(TextInputStyle.Short)
                 .setMaxLength(8)
                 .setRequired(true);
