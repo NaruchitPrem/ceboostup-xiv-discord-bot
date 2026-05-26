@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
 
@@ -240,22 +240,34 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// ----------------------------------------------------------
+// ----------------------------------------------------
 // ระบบต้อนรับคนเข้าเซิร์ฟเวอร์ (Welcome Message)
-// ---------------------------------------------------------
+// ----------------------------------------------------
 client.on(Events.GuildMemberAdd, async member => {
     try {
-        // ดึง ID ช่องต้อนรับ และช่อง verify จากไฟล์ .env
+        // ดึง ID ช่องต้อนรับ และช่อง verify จากไฟล์ .env (ใช้โค้ดเดิมของคุณเลยครับ)
         const welcomeChannelId = process.env.WELCOME_CHANNEL_ID;
-        const verifyChannelId = process.env.VERIFY_CHANNEL_ID; 
-        
+        const verifyChannelId = process.env.VERIFY_CHANNEL_ID;
+
         if (!welcomeChannelId) return;
 
         const welcomeChannel = await member.guild.channels.fetch(welcomeChannelId);
 
         if (welcomeChannel) {
-            // ส่งข้อความต้อนรับ (สามารถแก้ข้อความตรงนี้ได้ตามใจชอบเลยครับ)
-            await welcomeChannel.send(`🎉 ยินดีต้อนรับ <@${member.id}> สู่เซิร์ฟเวอร์ **CE BOOSTUP XIV** ครับ!\nอย่าลืมไปที่ช่อง <#${verifyChannelId}> เพื่อกดปุ่มยืนยันตัวตนรับยศนะครับ✅`);
+            // สร้างกล่องข้อความ Embed (แบบมีรูปโปรไฟล์)
+            const welcomeEmbed = new EmbedBuilder()
+                .setColor('#041241') // สีขอบซ้ายของกล่อง (สามารถเปลี่ยนรหัสสี HEX ได้ตามชอบ)
+                .setTitle('🎉 ยินดีต้อนรับ <@${member.id}> สู่ CE BOOSTUP XIV')
+                .setDescription(`ยินดีต้อนรับสู่เซิร์ฟเวอร์!\n\nอย่าลืมไปที่ช่อง <#${verifyChannelId}> เพื่อ **ยืนยันตัวตน** ด้วยนะครับ ✅`)
+                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
+                .setFooter({ text: `สมาชิกคนที่ ${member.guild.memberCount} ของเซิร์ฟเวอร์` })
+                .setTimestamp();
+
+            // ส่งข้อความ (มีการ Ping ชื่อด้านนอกกล่อง เพื่อให้แจ้งเตือนเด้งเตือนน้องๆ)
+            await welcomeChannel.send({ 
+                content: `🎉ยินดีต้อนรับ <@${member.id}> 👋`, 
+                embeds: [welcomeEmbed] 
+            });
         }
     } catch (error) {
         console.error('🚨 เกิดข้อผิดพลาดในการส่งข้อความต้อนรับ:', error);
