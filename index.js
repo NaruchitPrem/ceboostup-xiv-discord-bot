@@ -257,7 +257,7 @@ client.on(Events.GuildMemberAdd, async member => {
             // สร้างกล่องข้อความ Embed (แบบมีรูปโปรไฟล์)
             const welcomeEmbed = new EmbedBuilder()
                 .setColor('#041241') // สีขอบซ้ายของกล่อง (สามารถเปลี่ยนรหัสสี HEX ได้ตามชอบ)
-                .setTitle('🎉 ยินดีต้อนรับ ${member.displayName} สู่ CE BOOSTUP XIV 🎉')
+                .setTitle(`🎉 ยินดีต้อนรับ ${member.displayName} สู่ CE BOOSTUP XIV 🎉`)
                 .setDescription(`ยินดีต้อนรับสู่เซิร์ฟเวอร์!\n\nอย่าลืมไปที่ช่อง <#${verifyChannelId}> เพื่อ **ยืนยันตัวตน** ด้วยนะครับ ✅`)
                 .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
                 .setFooter({ text: `สมาชิกคนที่ ${member.guild.memberCount} ของเซิร์ฟเวอร์` })
