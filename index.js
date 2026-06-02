@@ -97,7 +97,7 @@ client.on(Events.InteractionCreate, async interaction => {
     // 🔘 [ส่วนที่ 1] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดปุ่ม"
     if (interaction.isButton()) {
         
-        // 👶 บล็อกของ "verify น้อง" 
+        // 👶 บล็อกของ "verify น้อง"
         if (interaction.customId === 'verify_button') {
             await interaction.deferReply({ ephemeral: true });
             
@@ -113,11 +113,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
                 const reportChannelId = process.env.REPORT_CHANNEL_ID;
                 
+                // 1. ค้นหาข้อมูลแล้วเก็บไว้ใน studentData
                 const studentData = rows.find(row => 
                     row.get('Discord ID')?.toLowerCase().trim() === currentUsername
                 );
 
-                if (studentData) { // 📌 แก้เป็น studentData ให้ตรงกับด้านบน
+                // 2. เปลี่ยนตรงนี้เป็น studentData ให้หมด!
+                if (studentData) { 
                     const nickname = studentData.get('ชื่อเล่น');
                     const houseName = studentData.get('บ้าน');
                     const majorName = studentData.get('สาขา'); 
@@ -127,7 +129,7 @@ client.on(Events.InteractionCreate, async interaction => {
                             await interaction.member.setNickname(`N' ${nickname}`);
                         }
                     } catch (err) {
-                        console.error('เปลี่ยนชื่อเล่นไม่สำเร็จ (เนื่องจากคุณเป็น Admin/Owner หรือยศบอทอยู่ต่ำกว่า):', err);
+                        console.error('เปลี่ยนชื่อเล่นไม่สำเร็จ:', err);
                     }
 
                     const houseRoleId = houseName ? houseRoles[houseName] : null;
