@@ -31,8 +31,8 @@ const houseRoles = {
 };
 
 const majorRoles = {
-    "Cyber": "1501150391205757051",
-    "CE65": "1501150271861035109"
+    'วิศวกรรมคอมพิวเตอร์ (หลักสูตรภาษาไทย)': '1501150271861035109',
+    'วิศวกรรมคอมพิวเตอร์และความปลอดภัยไซเบอร์': '1501150391205757051'
 };
 
 // ---------------------------------------------------------
@@ -60,13 +60,13 @@ client.on(Events.MessageCreate, async message => {
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('verify_button')
-                    .setLabel('ยืนยันตัวตน (Verify)')
-                    .setEmoji('✅')
-                    .setStyle(ButtonStyle.Success),
+                    .setLabel('เปิดไพ่ทำนายโชคชะตา')
+                    .setEmoji('🃏')
+                    .setStyle(ButtonStyle.Primary),
             );
 
         await message.channel.send({ 
-            content: 'เทส\n*(กดปุ่มด้านล่างเพื่อยืนยันตัวตนรับยศ)*', 
+            content: '🔮 วงล้อแห่งโชคชะตาได้เริ่มหมุนแล้ว จงกดปุ่มด้านล่างเพื่อเปิดไพ่ Arcana ประจำตัว ✨\n*(กดปุ่มด้านล่างเพื่อยืนยันตัวตน)*', 
             components: [row] 
         });
         await message.delete();
@@ -101,32 +101,61 @@ client.on(Events.InteractionCreate, async interaction => {
         if (interaction.customId === 'verify_button') {
             await interaction.deferReply({ ephemeral: true });
             try {
-                await doc.loadInfo();
-                const sheet = doc.sheetsByIndex[0];
-                const rows = await sheet.getRows();
-                const reportChannelId = process.env.REPORT_CHANNEL_ID;
+            await doc.loadInfo();
+            
+            // 1. ดึงแผ่นงาน (Tab) ออกมาพร้อมกันทั้ง 2 แผ่นตามชื่อหน้าแท็บจริง
+            const studentSheet = doc.sheetsByTitle['รายชื่อน้องทั้งหมด'];
+            const houseSheet = doc.sheetsByTitle['รายชื่อบ้าน (รวม)'];
+            
+            const studentRows = await studentSheet.getRows();
+            const houseRows = await houseSheet.getRows();
+            
+            const reportChannelId = process.env.REPORT_CHANNEL_ID;
 
-                const userData = rows.find(row => row.get('Discord ID') === interaction.user.id);
+            // 2. เปลี่ยนมาค้นหาด้วย Discord Username (บังคับเป็นตัวพิมพ์เล็กทั้งหมด)
+            const currentUsername = interaction.user.username.toLowerCase();
+            const studentData = studentRows.find(row => 
+                row.get('Discord ID')?.toLowerCase().trim() === currentUsername
+            );
 
-                if (userData) {
-                    const houseName = userData.get('House');
-                    const majorName = userData.get('Major');
+            if (studentData) {
+                // 3. ดึงข้อมูลจากแท็บรายชื่อน้องทั้งหมด (ใช้ชื่อหัวตารางภาษาไทยให้ตรงเป๊ะ)
+                const realName = studentData.get('ชื่อ - นามสกุล (ไม่ใส่คำนำหน้า)');
+                const nickname = studentData.get('ชื่อเล่น');
+                const majorName = studentData.get('สาขา'); 
 
-                    const houseRoleId = houseRoles[houseName];
-                    const majorRoleId = majorRoles[majorName];
+                // 4. เอาชื่อจริงไปวิ่งหา "บ้าน" ในแท็บรายชื่อบ้าน (รวม)
+                const houseMatch = houseRows.find(row => 
+                    row.get('ชื่อ - นามสกุล')?.trim() === realName?.trim()
+                );
+                const houseName = houseMatch ? houseMatch.get('บ้าน') : null;
 
-                    const rolesToAdd = [];
-                    if (houseRoleId) rolesToAdd.push(houseRoleId);
-                    if (majorRoleId) rolesToAdd.push(majorRoleId);
-
-                    if (rolesToAdd.length > 0) {
-                        await interaction.member.roles.add(rolesToAdd);
-                        await interaction.editReply(`✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับสู่ **${houseName}** (${majorName}) ครับ!`);
-                    } else {
-                        await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหายศในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                // 5. สั่งเปลี่ยนชื่อเล่นบน Discord เป็น N' ชื่อเล่น
+                try {
+                    if (nickname) {
+                        await interaction.member.setNickname(`N' ${nickname}`);
                     }
+                } catch (err) {
+                    console.error('เปลี่ยนชื่อเล่นไม่สำเร็จ (ยศบอทอาจจะอยู่ต่ำกว่าคนกด):', err);
+                }
+
+                // 6. ดึง Role ID จาก Object แผนผังยศที่คุณตั้งไว้ด้านบนสุดของโค้ด
+                const houseRoleId = houseName ? houseRoles[houseName] : null;
+                const majorRoleId = majorName ? majorRoles[majorName] : null;
+
+                const rolesToAdd = [];
+                if (houseRoleId) rolesToAdd.push(houseRoleId);
+                if (majorRoleId) rolesToAdd.push(majorRoleId);
+
+                if (rolesToAdd.length > 0) {
+                    // แจกยศทั้งหมดพร้อมกันรวดเดียว
+                    await interaction.member.roles.add(rolesToAdd);
+                    await interaction.editReply(`🃏 **The Cards Have Spoken!** ไพ่ได้เลือกแล้ว!\nยินดีต้อนรับ **N' ${nickname}** สู่เส้นทางแห่ง **${houseName || 'ไม่ระบุ'}** (${majorName || 'ไม่ระบุ'}) ขอให้โชคชะตาจงสถิตอยู่กับท่าน ✨`)
                 } else {
-                    await interaction.editReply(`❌ ไม่พบข้อมูล Discord ID ของคุณในระบบ! กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                    await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหาบทบาท (Role) ในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
+                }
+                } else {
+                await interaction.editReply(`❌ ไม่พบข้อมูล Discord Username ของคุณในระบบ! กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
                 }
             } catch (error) {
                 console.error(error);
