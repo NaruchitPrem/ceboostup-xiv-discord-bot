@@ -97,31 +97,31 @@ client.on(Events.InteractionCreate, async interaction => {
     // 🔘 [ส่วนที่ 1] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดปุ่ม"
     if (interaction.isButton()) {
         
-        // 👶 บล็อกของ "verify น้อง" (เวอร์ชันใหม่ ตารางเดี่ยวอ่านง่ายสุดๆ)
+        // 👶 บล็อกของ "verify น้อง" 
         if (interaction.customId === 'verify_button') {
             await interaction.deferReply({ ephemeral: true });
             
             try {
                 await doc.loadInfo();
-                
-                // 1. อ่านข้อมูลจากแผ่นงานแรกสุด (Index 0) ของ Google Sheet ใบใหม่
-                const sheet = doc.sheetsByTitle['Sheet1'];
-                const rows = await sheet.getRows();
-                const reportChannelId = process.env.REPORT_CHANNEL_ID;
 
-                // 2. ค้นหาด้วย Discord Username (แปลงตัวพิมพ์เล็ก + ตัดช่องว่างส่วนเกิน)
-                const currentUsername = interaction.user.username.toLowerCase().trim();
-                const userData = rows.find(row => 
+                const currentUsername = interaction.user.username.toLowerCase();
+                const sheet = doc.sheetsByTitle['Sheet1']; 
+                const rows = await sheet.getRows();
+
+                console.log("👉 บอทอ่านชื่อคอลัมน์ได้ว่า:", sheet.headerValues);
+                console.log("👉 ชื่อคนที่กดปุ่มใน Discord คือ:", currentUsername);
+
+                const reportChannelId = process.env.REPORT_CHANNEL_ID;
+                
+                const studentData = rows.find(row => 
                     row.get('Discord ID')?.toLowerCase().trim() === currentUsername
                 );
 
-                if (userData) {
-                    // 3. ดึงข้อมูลตรงๆ จากหัวคอลัมน์ภาษาไทยในชีทใหม่ได้เลย!
-                    const nickname = userData.get('ชื่อเล่น');
-                    const houseName = userData.get('บ้าน');
-                    const majorName = userData.get('สาขา'); 
+                if (studentData) { // 📌 แก้เป็น studentData ให้ตรงกับด้านบน
+                    const nickname = studentData.get('ชื่อเล่น');
+                    const houseName = studentData.get('บ้าน');
+                    const majorName = studentData.get('สาขา'); 
 
-                    // 4. สั่งเปลี่ยนชื่อเล่นบน Discord เป็น N' ชื่อเล่น
                     try {
                         if (nickname) {
                             await interaction.member.setNickname(`N' ${nickname}`);
@@ -130,7 +130,6 @@ client.on(Events.InteractionCreate, async interaction => {
                         console.error('เปลี่ยนชื่อเล่นไม่สำเร็จ (เนื่องจากคุณเป็น Admin/Owner หรือยศบอทอยู่ต่ำกว่า):', err);
                     }
 
-                    // 5. จับคู่ Role ID จาก Object แผนผังยศที่ตั้งไว้ด้านบนสุดของโค้ดคุณ
                     const houseRoleId = houseName ? houseRoles[houseName] : null;
                     const majorRoleId = majorName ? majorRoles[majorName] : null;
 
@@ -139,7 +138,6 @@ client.on(Events.InteractionCreate, async interaction => {
                     if (majorRoleId) rolesToAdd.push(majorRoleId);
 
                     if (rolesToAdd.length > 0) {
-                        // แจกยศบ้านและสาขาพร้อมกันรวดเดียว
                         await interaction.member.roles.add(rolesToAdd);
                         await interaction.editReply(`🃏 **The Cards Have Spoken!** ไพ่ได้เลือกแล้ว!\nยินดีต้อนรับ **N' ${nickname || interaction.user.username}** สู่เส้นทางแห่ง **${houseName || 'ไม่ระบุ'}** (${majorName || 'ไม่ระบุ'}) ขอให้โชคชะตาจงสถิตอยู่กับท่าน ✨`);
                     } else {
@@ -153,9 +151,9 @@ client.on(Events.InteractionCreate, async interaction => {
                 const reportChannelId = process.env.REPORT_CHANNEL_ID;
                 await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูลครับ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
             }
-        }
-    } // ปิด if (interaction.isButton)        
-        // 🛠️ บล็อกของ "verify Staff" (เปลี่ยนเป็นเด้งหน้าต่างกรอกรหัส)
+        } 
+        
+        // 🛠️ บล็อกของ "verify Staff" (เอามาต่อตรงนี้ให้อยู่ในแก๊ง isButton เดียวกัน)
         else if (interaction.customId === 'verify_staff_button') {
             const modal = new ModalBuilder()
                 .setCustomId('staff_verify_modal')
@@ -172,11 +170,11 @@ client.on(Events.InteractionCreate, async interaction => {
             const firstActionRow = new ActionRowBuilder().addComponents(studentIdInput);
             modal.addComponents(firstActionRow);
             
-            // สั่งให้บอทแสดงหน้าต่าง Pop-up เด้งขึ้นมา
             await interaction.showModal(modal);
         }
+    } // 🛑 ปิด if (interaction.isButton()) ตรงนี้ที่เดียว
 
-// 📝 [ส่วนที่ 2] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดยืนยันส่งฟอร์ม Pop-up" (Modal)
+    // 📝 [ส่วนที่ 2] : ถ้าสิ่งที่เกิดขึ้นคือการ "กดยืนยันส่งฟอร์ม Pop-up" (Modal) ของ Staff
     else if (interaction.isModalSubmit()) {
         
         if (interaction.customId === 'staff_verify_modal') {
@@ -184,12 +182,10 @@ client.on(Events.InteractionCreate, async interaction => {
             const studentId = interaction.fields.getTextInputValue('student_id_input').trim();
 
             try {
-                // โหลดข้อมูลจาก Google Sheet ของสตาฟ
                 await staffDoc.loadInfo();
                 const sheet = staffDoc.sheetsByIndex[0];
                 const rows = await sheet.getRows();
 
-                // ค้นหาแถวที่ "รหัสนศ." ตรงกับที่กรอกมา
                 const userData = rows.find(row => row.get('รหัสนศ.') === studentId);
 
                 if (userData) {
@@ -197,24 +193,17 @@ client.on(Events.InteractionCreate, async interaction => {
                     const nickname = userData.get('ชื่อเล่น');
                     const position = userData.get('ตำแหน่ง');
                     
-                    // 1. ดึงข้อความดิบมาจากชีท เช่น "The World (หัวหน้า)"
                     const rawHouseName = userData.get('บ้าน'); 
                     
-                    // 📌 2. [แก้ไขตรงนี้] ค้นหาคีย์ใน houseRoles ว่ามีคำไหน "ซ่อนอยู่ในข้อความดิบ" ไหม
-                    // เช่น ถ้า rawHouseName มีคำว่า "The World" มันจะเลือกคีย์ "The World" ให้ทันทีครับ
                     const houseName = Object.keys(houseRoles).find(key => 
                             rawHouseName && rawHouseName.toLowerCase().includes(key.toLowerCase()));
                                  
-                    // 3. เอาชื่อบ้านที่ถอดวงเล็บออกแล้ว ไปดึงไอดีของยศมาใช้งาน
                     const houseRoleId = houseName ? houseRoles[houseName] : undefined; 
 
                     if (!staffRoleId) {
                         return await interaction.editReply(`⚠️ บอทยังไม่ได้ตั้งค่ายศ Staff ในระบบครับ`);
                     }
 
-                    // ------------------------------------------------
-                    // ระบบเปลี่ยนชื่อเล่นเป็น P'ชื่อเล่น
-                    // ------------------------------------------------
                     let nicknameChanged = true;
                     try {
                         await interaction.member.setNickname(`P' ${nickname}`);
@@ -223,7 +212,6 @@ client.on(Events.InteractionCreate, async interaction => {
                         nicknameChanged = false; 
                     }
 
-                    // เตรียมรายการยศที่จะแจก
                     const rolesToAdd = [];
                     if (!interaction.member.roles.cache.has(staffRoleId)) {
                         rolesToAdd.push(staffRoleId);
@@ -232,14 +220,12 @@ client.on(Events.InteractionCreate, async interaction => {
                         rolesToAdd.push(houseRoleId);
                     }
 
-                    // สั่งยัดยศทั้งหมดที่มีในรายการพร้อมกัน
                     if (rolesToAdd.length > 0) {
                         await interaction.member.roles.add(rolesToAdd);
                     }
 
-                    // สร้างข้อความตอบกลับ
                     let msg = `✅ ยืนยันตัวตนสำเร็จ! ยินดีต้อนรับ **P' ${nickname}** `;
-                    if (houseRoleId) msg += ` บ้าน **${houseName}**`; // จะแสดงชื่อบ้านสวยๆ เช่น "The World"
+                    if (houseRoleId) msg += ` บ้าน **${houseName}**`; 
                     
                     if (nicknameChanged) {
                         msg += ` บอทได้เปลี่ยนชื่อเล่นในเซิร์ฟให้เป็น **P' ${nickname}** เรียบร้อยครับ 🛠️🏠`;
@@ -256,8 +242,8 @@ client.on(Events.InteractionCreate, async interaction => {
                 await interaction.editReply(`🚨 เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheet ครับ`);
             }
         }
-    }
-});
+    } // 🛑 ปิด else if (interaction.isModalSubmit())
+}); // 🛑 ปิด client.on()
 
 // ----------------------------------------------------
 // ระบบต้อนรับคนเข้าเซิร์ฟเวอร์ (Welcome Message)
