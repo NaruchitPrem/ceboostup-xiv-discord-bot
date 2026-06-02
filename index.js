@@ -105,7 +105,7 @@ client.on(Events.InteractionCreate, async interaction => {
                 await doc.loadInfo();
                 
                 // 1. อ่านข้อมูลจากแผ่นงานแรกสุด (Index 0) ของ Google Sheet ใบใหม่
-                const sheet = doc.sheetsByIndex[0];
+                const sheet = doc.sheetsByTitle['Sheet1'];
                 const rows = await sheet.getRows();
                 const reportChannelId = process.env.REPORT_CHANNEL_ID;
 
