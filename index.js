@@ -141,7 +141,28 @@ client.on(Events.InteractionCreate, async interaction => {
 
                     if (rolesToAdd.length > 0) {
                         await interaction.member.roles.add(rolesToAdd);
-                        await interaction.editReply(`🃏 **The Cards Have Spoken!** ไพ่ได้เลือกแล้ว!\nยินดีต้อนรับ **N' ${nickname || interaction.user.username}** สู่เส้นทางแห่ง **${houseName || 'ไม่ระบุ'}** (${majorName || 'ไม่ระบุ'}) ขอให้โชคชะตาจงสถิตอยู่กับท่าน ✨`);
+                        // ดึงข้อมูลสาขาจากชีท (ถ้ายังไม่ได้ดึงไว้ด้านบน)
+                            const majorName = userData.get('สาขา'); 
+
+                            // สร้างกล่อง Embed ดีไซน์เวทมนตร์/เปิดไพ่
+                            const successEmbed = new EmbedBuilder()
+                                .setColor('#6b17a6') // สีทองลึกลับ
+                                .setTitle('🃏 The Cards Have Spoken! โชคชะตาได้เลือกแล้ว')
+                                .setDescription(`วงล้อแห่งโชคชะตาได้หมุนวน และเปิดเผยตัวตนของท่านในเซิร์ฟเวอร์นี้ ✨`)
+                                .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 256 }))
+                                .addFields(
+                                    { name: '👤 ', value: `**N' ${nickname || interaction.user.username}**`, inline: true },
+                                    { name: '🔮 Arcana', value: `**${houseName || 'ไม่ระบุ'}**`, inline: true },
+                                    { name: '🎓 สาขาวิชา', value: `💻 ${majorName || 'ไม่ระบุ'}`, inline: false }
+                                )
+                                .setFooter({ text: 'CE BOOSTUP XIV • ขอให้โชคชะตาจงสถิตอยู่กับท่าน' })
+                                .setTimestamp();
+
+                            // ส่งข้อความแบบ Embed
+                            await interaction.editReply({ 
+                                content: `✨ ยินดีต้อนรับอย่างเป็นทางการครับ <@${interaction.user.id}>!`, 
+                                embeds: [successEmbed] 
+                            });
                     } else {
                         await interaction.editReply(`⚠️ พบข้อมูลคุณในระบบ แต่บอทหาบทบาท (Role) ในเซิร์ฟเวอร์ไม่เจอ กรุณาติดต่อที่ช่อง <#${reportChannelId}> ครับ`);
                     }
