@@ -63,8 +63,13 @@ const serviceAccountAuth = new JWT({
 const doc = new GoogleSpreadsheet(process.env.SHEET_ID, serviceAccountAuth);
 const staffDoc = new GoogleSpreadsheet(process.env.STAFF_SHEET_ID, serviceAccountAuth);
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
     console.log(`✅ ล็อกอินสำเร็จ! บอทพร้อมทำงานในชื่อ ${client.user.tag}`);
+    
+    // 🔄 สั่งให้บอทสแกนแจกยศย้อนหลังให้พี่บ้านทุกคนทันทีที่บอทเปิดใช้งาน
+    for (const guild of client.guilds.cache.values()) {
+        await syncPBaanRolesForGuild(guild);
+    }
 });
 
 // ---------------------------------------------------------
@@ -343,6 +348,45 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         }
     }
 });
+
+// ---------------------------------------------------------
+// 🔍 ฟังก์ชันพิเศษ: สแกนเช็กและแจกยศพี่บ้านย้อนหลังทั้งเซิร์ฟเวอร์
+// ---------------------------------------------------------
+async function syncPBaanRolesForGuild(guild) {
+    const staffRoleId = process.env.STAFF_ROLE_ID;
+    if (!staffRoleId) return;
+
+    console.log(`🔄 [Sync System] กำลังเริ่มสแกนเช็กยศพี่บ้านย้อนหลังในเซิร์ฟเวอร์: ${guild.name}...`);
+    try {
+        // ดึงรายชื่อสมาชิกทุกคนในเซิร์ฟเวอร์มาคำนวณ (fetch แบบทั้งหมด)
+        const members = await guild.members.fetch();
+        let addedCount = 0;
+
+        for (const member of members.values()) {
+            const isStaff = member.roles.cache.has(staffRoleId);
+            if (!isStaff) continue; // ถ้าไม่ใช่ Staff ข้ามไปเลย
+
+            // วนลูปเช็ก 12 บ้าน
+            for (const [houseName, houseRoleId] of Object.entries(houseRoles)) {
+                const pBaanRoleId = pBaanRoles[houseName];
+                if (!pBaanRoleId) continue;
+
+                const hasHouseRole = member.roles.cache.has(houseRoleId);
+                const hasPBaanRole = member.roles.cache.has(pBaanRoleId);
+
+                // ถ้าเป็น Staff + มียศบ้านนั้นๆ แต่บอทยังไม่เคยแจกยศพี่บ้านให้ -> จัดการแจกย้อนหลังทันที
+                if (hasHouseRole && !hasPBaanRole) {
+                    await member.roles.add(pBaanRoleId);
+                    console.log(`[Sync System] 👑 แจกยศย้อนหลัง: พี่บ้าน ${houseName} -> ให้กับ ${member.user.username}`);
+                    addedCount++;
+                }
+            }
+        }
+        console.log(`✅ [Sync System] เสร็จสิ้น! แจกยศย้อนหลังให้พี่บ้านที่ตกหล่นไปทั้งหมด ${addedCount} คน`);
+    } catch (err) {
+        console.error(`🚨 [Sync Error] เกิดข้อผิดพลาดในการสแกนยศของเซิร์ฟ ${guild.name}:`, err);
+    }
+}
 
 // ---------------------------------------------------------
 // 🌐 สร้าง Web Server จำลอง เพื่อให้ UptimeRobot คอยยิงมาปลุกบอท
