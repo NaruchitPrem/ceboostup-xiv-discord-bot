@@ -12,6 +12,22 @@ const client = new Client({
     ]
 });
 
+// 👑 กลุ่ม ID ยศ "พี่บ้าน" 12 อัน (แยกจากยศบ้านของน้องๆ)
+const pBaanRoles = {
+    "The Magician": "1515350162929881128",
+    "Justice": "1515350324091551814",
+    "Strength": "1515350375094550568",
+    "Temperance": "1515350420367867974",
+    "The Chariot": "1515350570896986242",
+    "The Emperor": "1515352035694743613",
+    "The Empress": "1515352215341109269",
+    "The Hierophant": "1515352476323414056",
+    "The High Priestess": "1515352720930902026",
+    "The Lovers": "1515352833619132437",
+    "The Star": "1515350523178389605",
+    "The World": "1515350459223904448"
+};
+
 // ---------------------------------------------------------
 // ตั้งค่า ID ยศ (Role IDs) ให้ตรงกับชื่อใน Google Sheet
 // ---------------------------------------------------------
@@ -144,7 +160,7 @@ client.on(Events.InteractionCreate, async interaction => {
                         await interaction.editReply(
                             `🔮 **[ THE CARDS HAVE SPOKEN | ไพ่ได้เลือกแล้ว ]** 🔮\n` +
                             `──────────────────────────────\n` +
-                            `✨ ยินดีต้อนรับ **N' ${nickname || interaction.user.username}** เข้าสู่เซิร์ฟเวอร์ครับ!\n\n` +
+                            `✨ ยินดีต้อนรับ **N' ${nickname || interaction.user.username}** เข้าสู่เซิร์ฟเวอร์!\n\n` +
                             `🃏 **Arcana Card :** \`${houseName || 'ไม่ระบุ'}\`\n` +
                             `💻 **สาขาวิชา :** \`${majorName || 'ไม่ระบุ'}\`\n\n` +
                             `*“ขอให้โชคชะตาจงสถิตอยู่กับท่าน...”* 🌟`
@@ -285,6 +301,46 @@ client.on(Events.GuildMemberAdd, async member => {
         }
     } catch (error) {
         console.error('🚨 เกิดข้อผิดพลาดในการส่งข้อความต้อนรับ:', error);
+    }
+});
+
+// ---------------------------------------------------------
+// 🔄 ระบบแจกยศ "พี่บ้าน" อัตโนมัติ (เช็ก ยศบ้าน + ยศ Staff) ทั้ง 12 บ้าน
+// ---------------------------------------------------------
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+    // ดึง ID ยศ Staff กลางจาก .env ของคุณ
+    const staffRoleId = process.env.STAFF_ROLE_ID; 
+    if (!staffRoleId) return;
+
+    // เช็กว่าคนนี้มียศ Staff ไหม
+    const isStaff = newMember.roles.cache.has(staffRoleId);
+
+    // วนลูปเช็กคู่ยศทั้ง 12 บ้านอัตโนมัติ (ใช้ houseRoles ตัวเดิมในโค้ดของคุณร่วมกับ pBaanRoles)
+    for (const [houseName, houseRoleId] of Object.entries(houseRoles)) {
+        const pBaanRoleId = pBaanRoles[houseName];
+        if (!pBaanRoleId) continue; // ถ้าบ้านไหนยังกรอก ID ไม่ครบให้ข้ามไปก่อน
+
+        const hasHouseRole = newMember.roles.cache.has(houseRoleId);
+        const hasPBaanRole = newMember.roles.cache.has(pBaanRoleId);
+
+        try {
+            // 🤝 เงื่อนไข: มียศบ้านนั้น + มีตำแหน่ง Staff -> แจกยศ "พี่บ้านประจำบ้าน" ทันที!
+            if (hasHouseRole && isStaff) {
+                if (!hasPBaanRole) {
+                    await newMember.roles.add(pBaanRoleId);
+                    console.log(`[P'Baan System] 👑 แจกยศพี่บ้าน ${houseName} ให้กับ ${newMember.user.username} เรียบร้อย`);
+                }
+            } 
+            // 🚫 เงื่อนไขหลุด: ถ้าโดนถอดยศบ้าน หรือโดนริบตำแหน่ง Staff -> ดึงยศพี่บ้านคืนทันที!
+            else {
+                if (hasPBaanRole) {
+                    await newMember.roles.remove(pBaanRoleId);
+                    console.log(`[P'Baan System] ❌ ถอดยศพี่บ้าน ${houseName} จาก ${newMember.user.username} เรียบร้อย`);
+                }
+            }
+        } catch (error) {
+            console.error(`เกิดข้อผิดพลาดในการจัดการยศพี่บ้าน ${houseName}:`, error);
+        }
     }
 });
 
